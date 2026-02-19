@@ -40,91 +40,25 @@ export const CSV_TOOL_DECLARATIONS = [
     },
   },
   {
-    name: 'compute_correlation',
+    name: 'get_top_tweets',
     description:
-      'Compute the Pearson correlation coefficient between two numeric columns. ' + COL_NOTE,
-    parameters: {
-      type: 'OBJECT',
-      properties: {
-        column1: {
-          type: 'STRING',
-          description: 'First column name, copied exactly from [CSV columns: ...].',
-        },
-        column2: {
-          type: 'STRING',
-          description: 'Second column name, copied exactly from [CSV columns: ...].',
-        },
-      },
-      required: ['column1', 'column2'],
-    },
-  },
-  {
-    name: 'filter_and_aggregate',
-    description:
-      'Filter rows where a text column contains a substring (case-insensitive), then compute an aggregation on a numeric column. ' +
-      'filter_value is a substring — "mog" will match rows containing "Mog", "mogging", "mogmaxxing", etc. ' +
-      COL_NOTE,
-    parameters: {
-      type: 'OBJECT',
-      properties: {
-        target_column: {
-          type: 'STRING',
-          description: 'Numeric column to aggregate — copied exactly from [CSV columns: ...].',
-        },
-        filter_column: {
-          type: 'STRING',
-          description: 'Text column to search — copied exactly from [CSV columns: ...].',
-        },
-        filter_value: {
-          type: 'STRING',
-          description: 'Substring to search for (case-insensitive). Partial matches are included — "mog" matches "mogging", "Mogmaxxing", etc.',
-        },
-        operation: {
-          type: 'STRING',
-          enum: ['mean', 'sum', 'count', 'min', 'max', 'median'],
-          description: 'Aggregation operation (default: mean)',
-        },
-      },
-      required: ['target_column', 'filter_column', 'filter_value'],
-    },
-  },
-  {
-    name: 'compare_keyword_engagement',
-    description:
-      'For each keyword, compare the mean engagement metric for rows whose text column CONTAINS the keyword (case-insensitive substring match) vs rows that do not. Returns a grouped bar chart. ' +
-      COL_NOTE,
-    parameters: {
-      type: 'OBJECT',
-      properties: {
-        keywords: {
-          type: 'ARRAY',
-          items: { type: 'STRING' },
-          description: 'List of keywords/substrings to compare. Each is matched case-insensitively anywhere in the text column.',
-        },
-        text_column: {
-          type: 'STRING',
-          description: 'Column containing the text to search — copied exactly from [CSV columns: ...]. Leave blank to auto-detect.',
-        },
-        metric_column: {
-          type: 'STRING',
-          description: 'Numeric engagement column — copied exactly from [CSV columns: ...]. Leave blank to auto-detect.',
-        },
-      },
-      required: ['keywords'],
-    },
-  },
-  {
-    name: 'get_top_rows',
-    description: 'Return the top N rows sorted by a column. ' + COL_NOTE,
+      'Return the top or bottom N tweets sorted by any metric, including the computed "engagement" column ' +
+      '(Favorite Count / View Count). Returns tweet text + all key metrics in a readable format. ' +
+      'Use this when someone asks for the best/worst/most/least performing tweets, ' +
+      'e.g. "show me the 10 most engaging tweets" or "what are the least viewed tweets". ' +
+      'The "engagement" column is always available once a CSV is loaded.',
     parameters: {
       type: 'OBJECT',
       properties: {
         sort_column: {
           type: 'STRING',
-          description: 'Column to sort by — copied exactly from [CSV columns: ...].',
+          description: 'Metric to sort by. Use "engagement" for engagement ratio, or any exact column name from [CSV columns: ...].',
         },
-        n: { type: 'NUMBER', description: 'Number of rows to return (default 10)' },
-        ascending: { type: 'BOOLEAN', description: 'Sort ascending? Default false (highest first)' },
+        n: { type: 'NUMBER', description: 'Number of tweets to return (default 10).' },
+        ascending: {
+          type: 'BOOLEAN',
+          description: 'false = highest first (top performers), true = lowest first (worst performers). Default false.',
+        },
       },
       required: ['sort_column'],
     },
@@ -195,6 +129,76 @@ const median = (sorted) =>
     : sorted[Math.floor(sorted.length / 2)];
 
 const fmt = (n) => +n.toFixed(4);
+
+// ── Build a slim CSV with only the key analytical columns ────────────────────
+// Extracts text, language, type, engagement metrics, and the computed engagement
+// ratio. Returns a plain CSV string Gemini can read directly in its context —
+// no base64 or Python needed. ~6-10k tokens for a 250-row tweet dataset.
+
+const SLIM_PATTERNS = [
+  /^text$/i,
+  /^language$/i,
+  /^type$/i,
+  /^view.?count$/i,
+  /^reply.?count$/i,
+  /^retweet.?count$/i,
+  /^quote.?count$/i,
+  /^favorite.?count$/i,
+  /^(created.?at|timestamp|date)$/i,
+  /^engagement$/i,            // computed column added by enrichWithEngagement
+];
+
+export const buildSlimCsv = (rows, headers) => {
+  if (!rows.length || !headers.length) return '';
+
+  // Pick columns that match any slim pattern, preserving header order
+  const slimHeaders = headers.filter((h) => SLIM_PATTERNS.some((re) => re.test(h)));
+  if (!slimHeaders.length) return '';
+
+  const escapeCell = (v) => {
+    const s = String(v ?? '');
+    return s.includes(',') || s.includes('"') || s.includes('\n')
+      ? `"${s.replace(/"/g, '""')}"`
+      : s;
+  };
+
+  const lines = [
+    slimHeaders.join(','),
+    ...rows.map((r) => slimHeaders.map((h) => escapeCell(r[h])).join(',')),
+  ];
+  return lines.join('\n');
+};
+
+// ── Enrich rows with computed engagement column ───────────────────────────────
+// Adds engagement = Favorite Count / View Count to every row.
+// Returns { rows: enrichedRows, headers: updatedHeaders }.
+// Safe to call even if the columns aren't present (skips gracefully).
+
+export const enrichWithEngagement = (rows, headers) => {
+  if (!rows.length) return { rows, headers };
+
+  // Auto-detect favorite and view columns
+  const favCol =
+    headers.find((h) => /favorite.?count/i.test(h)) ||
+    headers.find((h) => /^likes?$/i.test(h));
+  const viewCol =
+    headers.find((h) => /view.?count/i.test(h)) ||
+    headers.find((h) => /^views?$/i.test(h));
+
+  if (!favCol || !viewCol) return { rows, headers };
+  if (headers.includes('engagement')) return { rows, headers }; // already added
+
+  const enriched = rows.map((r) => {
+    const fav  = parseFloat(r[favCol]);
+    const view = parseFloat(r[viewCol]);
+    const eng  = !isNaN(fav) && !isNaN(view) && view > 0
+      ? +(fav / view).toFixed(6)
+      : null;
+    return { ...r, engagement: eng };
+  });
+
+  return { rows: enriched, headers: [...headers, 'engagement'] };
+};
 
 // ── Dataset summary (auto-computed when CSV is loaded) ───────────────────────
 // Returns a compact markdown string describing every column so Gemini always
@@ -300,128 +304,46 @@ export const executeTool = (toolName, args, rows) => {
       };
     }
 
-    case 'compute_correlation': {
-      const col1 = resolveCol(rows, args.column1);
-      const col2 = resolveCol(rows, args.column2);
-      console.log(`[compute_correlation] resolved: "${args.column1}"→"${col1}", "${args.column2}"→"${col2}"`);
-      const pairs = rows
-        .map((r) => [parseFloat(r[col1]), parseFloat(r[col2])])
-        .filter(([a, b]) => !isNaN(a) && !isNaN(b));
-      if (pairs.length < 2) return { error: 'Not enough numeric pairs to compute correlation' };
-      const n = pairs.length;
-      const m1 = pairs.reduce((s, p) => s + p[0], 0) / n;
-      const m2 = pairs.reduce((s, p) => s + p[1], 0) / n;
-      const cov = pairs.reduce((s, p) => s + (p[0] - m1) * (p[1] - m2), 0) / n;
-      const s1 = Math.sqrt(pairs.reduce((s, p) => s + (p[0] - m1) ** 2, 0) / n);
-      const s2 = Math.sqrt(pairs.reduce((s, p) => s + (p[1] - m2) ** 2, 0) / n);
-      return {
-        column1: col1,
-        column2: col2,
-        correlation: fmt(cov / (s1 * s2)),
-        n_pairs: n,
-      };
-    }
-
-    case 'filter_and_aggregate': {
-      const targetCol = resolveCol(rows, args.target_column);
-      const filterCol = resolveCol(rows, args.filter_column);
-      const { filter_value, operation = 'mean' } = args;
-      console.log(`[filter_and_aggregate] target:"${args.target_column}"→"${targetCol}", filter:"${args.filter_column}"→"${filterCol}"="${filter_value}"`);
-      const filterLower = String(filter_value).toLowerCase();
-      const filtered = rows.filter((r) =>
-        String(r[filterCol] ?? '').toLowerCase().includes(filterLower)
-      );
-      if (!filtered.length)
-        return { error: `No rows where ${filterCol} contains "${filter_value}" (case-insensitive). Available columns: ${availableHeaders.join(', ')}` };
-      const vals = numericValues(filtered, targetCol);
-      if (!vals.length)
-        return { error: `No numeric values in "${targetCol}" for the filtered rows` };
-      const opMap = {
-        mean: () => vals.reduce((a, b) => a + b, 0) / vals.length,
-        sum: () => vals.reduce((a, b) => a + b, 0),
-        count: () => vals.length,
-        min: () => Math.min(...vals),
-        max: () => Math.max(...vals),
-        median: () => median([...vals].sort((a, b) => a - b)),
-      };
-      return {
-        filter: `${filterCol} = "${filter_value}"`,
-        target_column: targetCol,
-        operation,
-        result: fmt((opMap[operation] || opMap.mean)()),
-        matching_rows: filtered.length,
-      };
-    }
-
-    case 'get_top_rows': {
-      const sortCol = resolveCol(rows, args.sort_column);
-      console.log(`[get_top_rows] resolved sort column: "${args.sort_column}" → "${sortCol}"`);
-      const n = args.n || 10;
+    case 'get_top_tweets': {
+      const sortCol = resolveCol(rows, args.sort_column) || args.sort_column;
+      console.log(`[get_top_tweets] sort="${sortCol}" n=${args.n} asc=${args.ascending}`);
+      const n   = args.n || 10;
       const asc = args.ascending ?? false;
+
+      // Detect text column for display
+      const textCol =
+        availableHeaders.find((h) => /^text$/i.test(h)) ||
+        availableHeaders.find((h) => /text|content|tweet|body/i.test(h));
+
+      // Detect key metric columns
+      const favCol  = availableHeaders.find((h) => /favorite.?count/i.test(h));
+      const viewCol = availableHeaders.find((h) => /view.?count/i.test(h));
+      const engCol  = availableHeaders.includes('engagement') ? 'engagement' : null;
+
       const sorted = [...rows].sort((a, b) => {
         const av = parseFloat(a[sortCol]);
         const bv = parseFloat(b[sortCol]);
         if (!isNaN(av) && !isNaN(bv)) return asc ? av - bv : bv - av;
-        return asc
-          ? String(a[sortCol]).localeCompare(String(b[sortCol]))
-          : String(b[sortCol]).localeCompare(String(a[sortCol]));
-      });
-      return { sort_column: sortCol, rows: sorted.slice(0, n) };
-    }
-
-    case 'compare_keyword_engagement': {
-      const { keywords } = args;
-
-      // Auto-detect text and metric columns if not provided
-      const allHeaders = rows.length ? Object.keys(rows[0]) : [];
-      const textCol =
-        args.text_column ||
-        allHeaders.find((h) => /^text$/i.test(h)) ||
-        allHeaders.find((h) => /text|content|tweet|post|body/i.test(h)) ||
-        allHeaders[0];
-      const metricCol =
-        args.metric_column ||
-        allHeaders.find((h) => /favorite.?count|likes?_count|like_count/i.test(h)) ||
-        allHeaders.find((h) => /favorite|like|engagement|retweet/i.test(h)) ||
-        allHeaders[1];
-
-      if (!textCol || !metricCol)
-        return { error: 'Could not detect text or metric columns. Please specify them.' };
-
-      const colMean = (subset) => {
-        const vals = subset.map((r) => parseFloat(r[metricCol])).filter((v) => !isNaN(v));
-        return vals.length ? +(vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(2) : 0;
-      };
-
-      const chartData = keywords.map((kw) => {
-        const lower = kw.toLowerCase();
-        const withKw = rows.filter((r) =>
-          String(r[textCol] || '').toLowerCase().includes(lower)
-        );
-        const withoutKw = rows.filter(
-          (r) => !String(r[textCol] || '').toLowerCase().includes(lower)
-        );
-        return {
-          name: kw,
-          withKeyword: colMean(withKw),
-          withoutKeyword: colMean(withoutKw),
-          withCount: withKw.length,
-          withoutCount: withoutKw.length,
-        };
+        return 0;
       });
 
-      // Return a special chart payload — Chat.js will render the EngagementChart component
+      const topRows = sorted.slice(0, n).map((r, i) => {
+        const out = { rank: i + 1 };
+        if (textCol) out.text = String(r[textCol] || '').slice(0, 150);
+        if (favCol)  out[favCol]  = r[favCol];
+        if (viewCol) out[viewCol] = r[viewCol];
+        if (engCol)  out.engagement = r.engagement;
+        return out;
+      });
+
+      if (!topRows.length)
+        return { error: `No rows found. Column "${sortCol}" may not exist. Available: ${availableHeaders.join(', ')}` };
+
       return {
-        _chartType: 'engagement',
-        metricColumn: metricCol,
-        textColumn: textCol,
-        data: chartData,
-        summary: chartData
-          .map(
-            (d) =>
-              `${d.name}: with=${d.withKeyword} (n=${d.withCount}), without=${d.withoutKeyword} (n=${d.withoutCount})`
-          )
-          .join('; '),
+        sort_column: sortCol,
+        direction: asc ? 'ascending (lowest first)' : 'descending (highest first)',
+        count: topRows.length,
+        tweets: topRows,
       };
     }
 
