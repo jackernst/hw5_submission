@@ -67,9 +67,10 @@ Each item in `messages`:
 | Field | Type | Description |
 |-------|------|-------------|
 | `role` | string | `"user"` or `"model"` |
-| `content` | string | Message text |
+| `content` | string | Message text (plain, no CSV base64) |
 | `timestamp` | string | ISO timestamp |
-| `imageData` | array | *(optional)* Base64 image attachments |
+| `imageData` | array | *(optional)* Base64 image attachments `[{ data, mimeType }]` |
+| `toolCalls` | array | *(optional)* Client-side tool invocations `[{ name, args, result }]` |
 
 ## Running the App
 
@@ -127,7 +128,7 @@ All packages are installed via `npm install`. Key dependencies:
 | `@google/generative-ai` | Gemini API client (chat, function calling, code execution, search grounding) |
 | `react-markdown` | Render markdown in AI responses |
 | `remark-gfm` | GitHub-flavored markdown (tables, strikethrough, etc.) |
-| `recharts` | Interactive bar charts for keyword engagement analysis |
+| `recharts` | Interactive charts (available for future visualizations) |
 
 ### Backend
 
@@ -153,17 +154,16 @@ All packages are installed via `npm install`. Key dependencies:
 - **Session-based chat history** – Each conversation is a separate session; sidebar lists all chats with delete option
 - **Streaming Gemini responses** – Text streams in real time with animated "..." while thinking; Stop button to cancel
 - **Google Search grounding** – Answers include cited web sources for factual queries
-- **Python code execution** – Gemini writes and runs Python for plots, regression, and custom analysis
-- **CSV upload** – Drag-and-drop or click to attach a CSV; columns are parsed and made available to all tools
-- **Client-side data analysis tools** – Fast, free function-calling tools run in the browser (no Python needed for common stats):
-  - `compute_column_stats` – mean, median, std, min, max for a numeric column
-  - `get_value_counts` – count of each unique value in a categorical column
-  - `compute_correlation` – Pearson correlation between two numeric columns
-  - `filter_and_aggregate` – aggregate a column after filtering rows (e.g. mean likes where type = "tweet")
-  - `get_top_rows` – top N rows sorted by a column
-  - `compare_keyword_engagement` – for a list of keywords, compute mean engagement with vs without each keyword and render a grouped bar chart
+- **Python code execution** – Gemini writes and runs Python for plots, regression, histogram, scatter, and any analysis the JS tools can't handle
+- **CSV upload** – Drag-and-drop or click to attach a CSV; a slim version of the data (key columns as plain text) plus a full statistical summary are sent to Gemini automatically
+- **Auto-computed engagement column** – When a CSV has `Favorite Count` and `View Count` columns, an `engagement` ratio (Favorite Count / View Count) is added automatically to every row
+- **Client-side data analysis tools** – Fast, zero-cost function-calling tools that run in the browser. Gemini calls these automatically for data questions; results are saved to MongoDB alongside the message:
+  - `compute_column_stats(column)` – mean, median, std, min, max, count for any numeric column
+  - `get_value_counts(column, top_n)` – frequency count of each unique value in a categorical column
+  - `get_top_tweets(sort_column, n, ascending)` – top or bottom N tweets sorted by any metric (including `engagement`), with tweet text and key metrics
+- **Tool routing logic** – The app automatically routes requests: client-side JS tools for simple stats, Python code execution for plots and complex models, Google Search for factual queries
 - **Markdown rendering** – AI responses render headers, lists, code blocks, tables, and links
-- **Image support** – Attach images via drag-and-drop or the 📎 button
+- **Image support** – Attach images via drag-and-drop, the 📎 button, or paste from clipboard (Ctrl+V)
 
 ## Chat System Prompt
 

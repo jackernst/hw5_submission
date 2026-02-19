@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { streamChat, chatWithCsvTools, CODE_KEYWORDS } from '../services/gemini';
-import { parseCsvToRows, executeTool, computeDatasetSummary } from '../services/csvTools';
+import { parseCsvToRows, executeTool, computeDatasetSummary, enrichWithEngagement, buildSlimCsv } from '../services/csvTools';
 import {
   getSessions,
   createSession,
@@ -120,6 +120,7 @@ export default function Chat({ username, onLogout }) {
   const [sessionCsvRows, setSessionCsvRows] = useState(null);    // parsed rows for JS tools
   const [sessionCsvHeaders, setSessionCsvHeaders] = useState(null); // headers for tool routing
   const [csvDataSummary, setCsvDataSummary] = useState(null);    // auto-computed column stats summary
+  const [sessionSlimCsv, setSessionSlimCsv] = useState(null);   // key-columns CSV string sent directly to Gemini
   const [streaming, setStreaming] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [openMenuId, setOpenMenuId] = useState(null);
@@ -128,34 +129,31 @@ export default function Chat({ username, onLogout }) {
   const inputRef = useRef(null);
   const abortRef = useRef(false);
   const fileInputRef = useRef(null);
-  // Tracks the previous activeSessionId so we can detect when a session was
-  // *just created* (transition from 'new' → real ID during an active send).
-  // In that case we must NOT wipe messages — streaming is still in progress.
-  const prevSessionIdRef = useRef(null);
+  // Set to true immediately before setActiveSessionId() is called during a send
+  // so the messages useEffect knows to skip the reload (streaming is in progress).
+  const justCreatedSessionRef = useRef(false);
 
   // On login: load sessions from DB; 'new' means an unsaved pending chat
   useEffect(() => {
     const init = async () => {
       const list = await getSessions(username);
       setSessions(list);
-      setActiveSessionId(list.length > 0 ? list[0].id : 'new');
+      setActiveSessionId('new'); // always start with a fresh empty chat on login
     };
     init();
   }, [username]);
 
   useEffect(() => {
     if (!activeSessionId || activeSessionId === 'new') {
-      prevSessionIdRef.current = activeSessionId;
       setMessages([]);
       return;
     }
-    // If we just transitioned from 'new' → real ID (session was created during
-    // an active send), messages are already in state — don't wipe them.
-    if (prevSessionIdRef.current === 'new') {
-      prevSessionIdRef.current = activeSessionId;
+    // If a session was just created during an active send, messages are already
+    // in state and streaming is in progress — don't wipe them.
+    if (justCreatedSessionRef.current) {
+      justCreatedSessionRef.current = false;
       return;
     }
-    prevSessionIdRef.current = activeSessionId;
     setMessages([]);
     loadMessages(activeSessionId).then(setMessages);
   }, [activeSessionId]);
@@ -237,11 +235,13 @@ export default function Chat({ username, onLogout }) {
       const parsed = parseCSV(text);
       if (parsed) {
         setCsvContext({ name: file.name, ...parsed });
-        // Parse full rows for client-side JS tool execution + auto-summary
-        const { headers, rows } = parseCsvToRows(text);
+        // Parse rows, add computed engagement col, build summary + slim CSV
+        const raw = parseCsvToRows(text);
+        const { rows, headers } = enrichWithEngagement(raw.rows, raw.headers);
         setSessionCsvHeaders(headers);
         setSessionCsvRows(rows);
         setCsvDataSummary(computeDatasetSummary(rows, headers));
+        setSessionSlimCsv(buildSlimCsv(rows, headers));
       }
     }
 
@@ -269,10 +269,12 @@ export default function Chat({ username, onLogout }) {
       const parsed = parseCSV(text);
       if (parsed) {
         setCsvContext({ name: csvFiles[0].name, ...parsed });
-        const { headers, rows } = parseCsvToRows(text);
+        const raw = parseCsvToRows(text);
+        const { rows, headers } = enrichWithEngagement(raw.rows, raw.headers);
         setSessionCsvHeaders(headers);
         setSessionCsvRows(rows);
         setCsvDataSummary(computeDatasetSummary(rows, headers));
+        setSessionSlimCsv(buildSlimCsv(rows, headers));
       }
     }
     if (imageFiles.length > 0) {
@@ -288,6 +290,27 @@ export default function Chat({ username, onLogout }) {
   };
 
   // ── Stop generation ─────────────────────────────────────────────────────────
+
+  const handlePaste = async (e) => {
+    const items = Array.from(e.clipboardData?.items || []);
+    const imageItems = items.filter((item) => item.type.startsWith('image/'));
+    if (!imageItems.length) return;
+    e.preventDefault();
+    const newImages = await Promise.all(
+      imageItems.map(
+        (item) =>
+          new Promise((resolve) => {
+            const file = item.getAsFile();
+            if (!file) return resolve(null);
+            const reader = new FileReader();
+            reader.onload = () =>
+              resolve({ data: reader.result.split(',')[1], mimeType: file.type, name: 'pasted-image' });
+            reader.readAsDataURL(file);
+          })
+      )
+    );
+    setImages((prev) => [...prev, ...newImages.filter(Boolean)]);
+  };
 
   const handleStop = () => {
     abortRef.current = true;
@@ -305,6 +328,7 @@ export default function Chat({ username, onLogout }) {
       const title = chatTitle();
       const { id } = await createSession(username, 'lisa', title);
       sessionId = id;
+      justCreatedSessionRef.current = true; // tell useEffect to skip the reload
       setActiveSessionId(id);
       setSessions((prev) => [{ id, agent: 'lisa', title, createdAt: new Date().toISOString(), messageCount: 0 }, ...prev]);
     }
@@ -328,17 +352,20 @@ export default function Chat({ username, onLogout }) {
     // ── Build prompt ─────────────────────────────────────────────────────────
     // sessionSummary: auto-computed column stats, included with every message
     const sessionSummary = csvDataSummary || '';
+    // slimCsv: key columns only (text, type, metrics, engagement) as plain readable CSV
+    // ~6-10k tokens — Gemini reads it directly so it can answer from context or call tools
+    const slimCsvBlock = sessionSlimCsv
+      ? `\n\nFull dataset (key columns):\n\`\`\`csv\n${sessionSlimCsv}\n\`\`\``
+      : '';
+
     const csvPrefix = capturedCsv
       ? needsBase64
-        // Full prefix with base64 — only when Gemini will run Python
-        ? `[CSV File: "${capturedCsv.name}" | ${capturedCsv.rowCount} rows${capturedCsv.truncated ? ' (first 500KB)' : ''} | Columns: ${capturedCsv.headers.join(', ')}]
+        // Python path: send base64 so Gemini can load it with pandas
+        ? `[CSV File: "${capturedCsv.name}" | ${capturedCsv.rowCount} rows | Columns: ${capturedCsv.headers.join(', ')}]
 
-${sessionSummary ? sessionSummary + '\n\n' : ''}Data preview (first 5 rows):
-\`\`\`
-${capturedCsv.preview}
-\`\`\`
+${sessionSummary}${slimCsvBlock}
 
-IMPORTANT — to load this data in Python, always use this exact pattern:
+IMPORTANT — to load the full data in Python use this exact pattern:
 \`\`\`python
 import pandas as pd, io, base64
 df = pd.read_csv(io.BytesIO(base64.b64decode("${capturedCsv.base64}")))
@@ -347,13 +374,10 @@ df = pd.read_csv(io.BytesIO(base64.b64decode("${capturedCsv.base64}")))
 ---
 
 `
-        // Lightweight prefix — summary + preview, no base64
+        // Standard path: plain CSV text — no encoding needed
         : `[CSV File: "${capturedCsv.name}" | ${capturedCsv.rowCount} rows | Columns: ${capturedCsv.headers.join(', ')}]
 
-${sessionSummary ? sessionSummary + '\n\n' : ''}Data preview (first 5 rows):
-\`\`\`
-${capturedCsv.preview}
-\`\`\`
+${sessionSummary}${slimCsvBlock}
 
 ---
 
@@ -730,6 +754,7 @@ ${capturedCsv.preview}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
+              onPaste={handlePaste}
               disabled={streaming}
             />
             {streaming ? (
