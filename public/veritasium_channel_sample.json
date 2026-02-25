@@ -1,0 +1,140 @@
+{
+  "channel": {
+    "handle": "veritasium",
+    "url": "https://www.youtube.com/@veritasium",
+    "title": "Veritasium"
+  },
+  "videos": [
+    {
+      "video_id": "v001",
+      "title": "Why Do You Feel Dizzy?",
+      "description": "A physics + biology explanation of dizziness and balance.",
+      "transcript": null,
+      "duration": 834,
+      "published_at": "2024-11-02T16:00:00Z",
+      "view_count": 5123456,
+      "like_count": 184321,
+      "comment_count": 12987,
+      "thumbnail_url": "https://i.ytimg.com/vi/v001/hqdefault.jpg",
+      "video_url": "https://www.youtube.com/watch?v=v001"
+    },
+    {
+      "video_id": "v002",
+      "title": "The Math Problem That Broke the Internet",
+      "description": "A deep dive into a deceptively simple puzzle and what it teaches us.",
+      "transcript": null,
+      "duration": 1120,
+      "published_at": "2024-10-12T16:00:00Z",
+      "view_count": 3987654,
+      "like_count": 167890,
+      "comment_count": 15432,
+      "thumbnail_url": "https://i.ytimg.com/vi/v002/hqdefault.jpg",
+      "video_url": "https://www.youtube.com/watch?v=v002"
+    },
+    {
+      "video_id": "v003",
+      "title": "Why No One Has Measured the Speed of Light",
+      "description": "We measure it… but not the way you think.",
+      "transcript": null,
+      "duration": 1065,
+      "published_at": "2024-09-21T16:00:00Z",
+      "view_count": 6212345,
+      "like_count": 210456,
+      "comment_count": 17890,
+      "thumbnail_url": "https://i.ytimg.com/vi/v003/hqdefault.jpg",
+      "video_url": "https://www.youtube.com/watch?v=v003"
+    },
+    {
+      "video_id": "v004",
+      "title": "The Weirdest Coincidence in Physics",
+      "description": "A strange alignment of constants and what it might mean.",
+      "transcript": null,
+      "duration": 978,
+      "published_at": "2024-08-31T16:00:00Z",
+      "view_count": 2876543,
+      "like_count": 132456,
+      "comment_count": 9345,
+      "thumbnail_url": "https://i.ytimg.com/vi/v004/hqdefault.jpg",
+      "video_url": "https://www.youtube.com/watch?v=v004"
+    },
+    {
+      "video_id": "v005",
+      "title": "How (Not) to Prove You’re Right",
+      "description": "Statistics, cognitive bias, and the traps we all fall into.",
+      "transcript": null,
+      "duration": 1242,
+      "published_at": "2024-08-10T16:00:00Z",
+      "view_count": 4532109,
+      "like_count": 198765,
+      "comment_count": 20123,
+      "thumbnail_url": "https://i.ytimg.com/vi/v005/hqdefault.jpg",
+      "video_url": "https://www.youtube.com/watch?v=v005"
+    },
+    {
+      "video_id": "v006",
+      "title": "The Hidden Rule Behind Viral Videos",
+      "description": "What drives watch time and why some topics explode.",
+      "transcript": null,
+      "duration": 915,
+      "published_at": "2024-07-20T16:00:00Z",
+      "view_count": 3345678,
+      "like_count": 145678,
+      "comment_count": 11234,
+      "thumbnail_url": "https://i.ytimg.com/vi/v006/hqdefault.jpg",
+      "video_url": "https://www.youtube.com/watch?v=v006"
+    },
+    {
+      "video_id": "v007",
+      "title": "The Most Confusing Experiment Ever",
+      "description": "A thought experiment that changes what you believe about reality.",
+      "transcript": null,
+      "duration": 1388,
+      "published_at": "2024-06-29T16:00:00Z",
+      "view_count": 7123456,
+      "like_count": 265432,
+      "comment_count": 23456,
+      "thumbnail_url": "https://i.ytimg.com/vi/v007/hqdefault.jpg",
+      "video_url": "https://www.youtube.com/watch?v=v007"
+    },
+    {
+      "video_id": "v008",
+      "title": "Why You Can’t Trust Your Memory",
+      "description": "Neuroscience and the reconstructive nature of memory.",
+      "transcript": null,
+      "duration": 1040,
+      "published_at": "2024-06-08T16:00:00Z",
+      "view_count": 2765432,
+      "like_count": 123987,
+      "comment_count": 8456,
+      "thumbnail_url": "https://i.ytimg.com/vi/v008/hqdefault.jpg",
+      "video_url": "https://www.youtube.com/watch?v=v008"
+    },
+    {
+      "video_id": "v009",
+      "title": "The Simple Trick to Solve Hard Problems",
+      "description": "A practical framework for tackling complex questions.",
+      "transcript": null,
+      "duration": 860,
+      "published_at": "2024-05-18T16:00:00Z",
+      "view_count": 1987654,
+      "like_count": 90543,
+      "comment_count": 6123,
+      "thumbnail_url": "https://i.ytimg.com/vi/v009/hqdefault.jpg",
+      "video_url": "https://www.youtube.com/watch?v=v009"
+    },
+    {
+      "video_id": "v010",
+      "title": "The Most Viewed Video (And Why)",
+      "description": "Breaking down what made this one reach so many people.",
+      "transcript": null,
+      "duration": 990,
+      "published_at": "2024-04-27T16:00:00Z",
+      "view_count": 12456789,
+      "like_count": 410987,
+      "comment_count": 34567,
+      "thumbnail_url": "https://i.ytimg.com/vi/v010/hqdefault.jpg",
+      "video_url": "https://www.youtube.com/watch?v=v010"
+    }
+  ]
+}
+

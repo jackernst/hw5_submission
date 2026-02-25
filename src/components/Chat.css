@@ -2,7 +2,7 @@
 
 .chat-layout {
   display: flex;
-  height: 100vh;
+  height: 100%;
   width: 100%;
   overflow: hidden;
 }
@@ -522,6 +522,77 @@
   border-radius: 10px;
   object-fit: cover;
   border: 1px solid rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+}
+
+/* ── Lightbox ────────────────────────────────────────────────────────────── */
+
+.lightbox {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  z-index: 9999;
+}
+
+.lightbox-inner {
+  width: min(980px, 100%);
+  background: rgba(15, 15, 35, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 18px 70px rgba(0, 0, 0, 0.55);
+}
+
+.lightbox-img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 72vh;
+  object-fit: contain;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.chart-lightbox-body {
+  padding: 1rem 1.25rem 0.25rem;
+}
+
+.lightbox-actions {
+  display: flex;
+  gap: 0.7rem;
+  justify-content: flex-end;
+  padding: 0.85rem 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.lightbox-btn {
+  padding: 0.6rem 0.9rem;
+  border-radius: 12px;
+  background: rgba(99, 102, 241, 0.85);
+  border: 1px solid rgba(129, 140, 248, 0.4);
+  color: #fff;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.lightbox-btn:hover {
+  background: rgba(99, 102, 241, 1);
+}
+
+.lightbox-btn.secondary {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.lightbox-btn.secondary:hover {
+  background: rgba(255, 255, 255, 0.14);
 }
 
 /* ── Input area ───────────────────────────────────────────────────────────── */
@@ -775,6 +846,70 @@
   color: #6ee7b7;
 }
 
+/* ── JSON chip (attached file) ───────────────────────────────────────────── */
+
+.json-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.65rem;
+  padding: 0.4rem 0.75rem 0.4rem 0.6rem;
+  background: rgba(147, 197, 253, 0.12);
+  border: 1px solid rgba(147, 197, 253, 0.25);
+  border-radius: 20px;
+  max-width: 100%;
+}
+
+.json-chip-icon {
+  font-size: 0.95rem;
+  flex-shrink: 0;
+}
+
+.json-chip-name {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.82rem;
+  font-weight: 650;
+  color: #93c5fd;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 220px;
+}
+
+.json-chip-meta {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.73rem;
+  color: rgba(147, 197, 253, 0.65);
+  white-space: nowrap;
+}
+
+.json-chip-remove {
+  background: none;
+  border: none;
+  color: rgba(147, 197, 253, 0.6);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  transition: color 0.15s;
+}
+
+.json-chip-remove:hover {
+  color: #bfdbfe;
+}
+
+.json-chip-error {
+  margin: -0.35rem 0 0.65rem;
+  padding: 0.55rem 0.75rem;
+  background: rgba(248, 113, 113, 0.08);
+  border: 1px solid rgba(248, 113, 113, 0.18);
+  border-radius: 12px;
+  color: rgba(252, 165, 165, 0.95);
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
 /* CSV badge on sent user messages */
 
 .msg-csv-badge {
@@ -787,6 +922,55 @@
   font-family: 'Inter', sans-serif;
   font-size: 0.72rem;
   color: #6ee7b7;
+}
+
+/* Video card from play_video tool */
+
+.video-card {
+  display: flex;
+  gap: 0.7rem;
+  margin-top: 0.75rem;
+  padding: 0.6rem 0.7rem;
+  background: rgba(15, 23, 42, 0.9);
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+}
+
+.video-card-thumb {
+  width: 120px;
+  height: 68px;
+  object-fit: cover;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.video-card-body {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 0.35rem;
+}
+
+.video-card-title {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #e5e7eb;
+}
+
+.video-card-btn {
+  align-self: flex-start;
+  padding: 0.35rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid rgba(59, 130, 246, 0.5);
+  background: rgba(37, 99, 235, 0.85);
+  color: #e5e7eb;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.video-card-btn:hover {
+  background: rgba(37, 99, 235, 1);
 }
 
 /* ── Structured message parts (code execution) ───────────────────────────── */
@@ -957,6 +1141,55 @@
   color: rgba(255, 255, 255, 0.45);
   text-transform: uppercase;
   margin: 0 0 0.6rem 0.5rem;
+}
+
+/* Metric vs time chart */
+
+.metric-chart-wrap {
+  margin: 1rem 0 0.4rem;
+  padding: 1rem 0.5rem 0.75rem;
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  border-radius: 14px;
+}
+
+.metric-chart-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: rgba(226, 232, 240, 0.78);
+  text-transform: uppercase;
+  margin: 0 0 0.6rem 0.5rem;
+}
+
+.metric-chart-block {
+  margin-top: 0.75rem;
+}
+
+.metric-chart-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.35rem;
+}
+
+.metric-chart-btn {
+  padding: 0.35rem 0.8rem;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.5);
+  background: rgba(15, 23, 42, 0.85);
+  color: rgba(226, 232, 240, 0.9);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s;
+}
+
+.metric-chart-btn:hover {
+  background: rgba(30, 64, 175, 0.95);
+  border-color: rgba(129, 140, 248, 0.8);
+  color: #e5e7eb;
+  box-shadow: 0 4px 18px rgba(30, 64, 175, 0.4);
 }
 
 /* ── Empty state ─────────────────────────────────────────────────────────── */

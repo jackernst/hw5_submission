@@ -1,5 +1,4 @@
 import { GoogleGenAI } from '@google/genai';
-import { CSV_TOOL_DECLARATIONS } from './csvTools';
 
 // New Gen AI SDK client (uses the v1 Gemini API under the hood).
 // NOTE: This runs in the browser; REACT_APP_GEMINI_API_KEY is baked in at build time.
